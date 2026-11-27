@@ -17,7 +17,7 @@
 
 ### 方式一：直接用移植版（不需要 Python）
 
-1. 从本仓库 [Releases](../../releases) 下载 `库存管理系统-移植版-v1.0.0.zip`
+1. 从本仓库 [Releases](../../releases) 下载移植版 zip（如 `InventoryManager-portable-v1.0.0.zip`）
 2. 解压得到 `移植文件/` 目录（内含 exe、前端、SQL 脚本和使用说明）
 3. 安装 MySQL 8 并启动
 4. 把 `移植文件/sql/install.sql` 导入（建库 + 15 张表）
