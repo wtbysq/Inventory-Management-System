@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>库存管理系统</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20261124">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-brand">
+        <div class="logo">仓</div>
+        <div>
+          <h1>库存管理系统</h1>
+          <p>商品 · 库存 · 订单 · 任务 · 盘点 · 调拨</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <div class="user-chip" id="userChip">
+          <span class="avatar" id="userAvatar">-</span>
+          <div class="user-meta">
+            <strong id="userName">未登录</strong>
+            <small id="currentUserRole">-</small>
+          </div>
+          <button class="icon-btn light" id="logoutBtn" type="button" title="退出登录">⎋</button>
+        </div>
+        <button class="btn btn-light" id="refreshBtn" type="button">刷新数据</button>
+        <button class="btn btn-accent" id="openOrderBtn" type="button" data-write>新建订单</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" aria-label="功能导航">
+      <button class="tab active" type="button" data-tab="products">商品库存</button>
+      <button class="tab" type="button" data-tab="orders">订单管理</button>
+      <button class="tab" type="button" data-tab="tasks">任务管理</button>
+      <button class="tab" type="button" data-tab="stocktakes">库存盘点</button>
+      <button class="tab" type="button" data-tab="transfers">库存调拨</button>
+      <button class="tab" type="button" data-tab="users" data-admin-only hidden>用户管理</button>
+    </nav>
+
+    <main>
+      <!-- 商品库存 -->
+      <div class="tab-panel" id="panel-products">
+        <section class="stats" aria-label="库存统计">
+          <article class="stat-card">
+            <span class="stat-label">商品种类</span>
+            <strong id="statProducts">--</strong>
+            <span class="stat-hint">个 SKU</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">库存总量</span>
+            <strong id="statQuantity">--</strong>
+            <span class="stat-hint">件商品</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">库存总价值</span>
+            <strong id="statValue">--</strong>
+            <span class="stat-hint">按成本价计算</span>
+          </article>
+          <article class="stat-card warning">
+            <span class="stat-label">低库存商品</span>
+            <strong id="statLowStock">--</strong>
+            <span class="stat-hint">需要补货</span>
+          </article>
+        </section>
+
+        <section class="profit-card" aria-label="订单盈利">
+          <div class="profit-main">
+            <span class="stat-label">累计利润</span>
+            <strong id="statProfit">--</strong>
+            <span class="stat-hint">已支付订单 · 按商品当前成本价计算</span>
+          </div>
+          <div class="profit-split">
+            <div>
+              <span class="stat-label">销售总额</span>
+              <strong id="statRevenue">--</strong>
+            </div>
+            <div>
+              <span class="stat-label">已支付订单</span>
+              <strong id="statPaidOrders">--</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>商品库存</h2>
+              <p>支持关键字、分类和低库存筛选</p>
+            </div>
+            <span class="pill" id="resultCount">共 -- 条</span>
+          </div>
+
+          <div class="toolbar">
+            <label class="search">
+              <span class="search-icon">⌕</span>
+              <input id="keywordInput" type="search" placeholder="搜索商品名称或 SKU" autocomplete="off">
+            </label>
+            <select id="categorySelect" aria-label="分类筛选">
+              <option value="">全部分类</option>
+            </select>
+            <label class="check">
+              <input id="lowStockOnly" type="checkbox">
+              <span>只看低库存</span>
+            </label>
+            <button class="btn btn-dark" id="searchBtn" type="button">查询</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>商品</th>
+                  <th>SKU</th>
+                  <th>分类</th>
+                  <th class="num">库存</th>
+                  <th class="num">售价</th>
+                  <th class="num">成本</th>
+                  <th>状态</th>
+                  <th>最近入库</th>
+                  <th class="actions-col">操作</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody"></tbody>
+            </table>
+            <div class="empty" id="emptyState" hidden>
+              <strong>没有找到商品</strong>
+              <span>换个关键字或筛选条件试试。</span>
+            </div>
+          </div>
+
+          <div class="pager">
+            <span id="pageInfo">第 1 / 1 页</span>
+            <div class="pager-actions">
+              <button class="btn btn-ghost" id="prevPage" type="button">上一页</button>
+              <div class="pager-pages" id="pageNumbers"></div>
+              <button class="btn btn-ghost" id="nextPage" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 订单 -->
+      <div class="tab-panel" id="panel-orders" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>订单管理</h2>
+              <p>支持支付、取消（回补库存）和部分退货</p>
+            </div>
+            <div class="panel-actions">
+              <select id="orderStatusFilter" aria-label="订单状态筛选">
+                <option value="">全部状态</option>
+                <option value="CREATED">已创建</option>
+                <option value="PAID">已支付</option>
+                <option value="PARTIALLY_RETURNED">部分退货</option>
+                <option value="RETURNED">已退货</option>
+                <option value="CANCELLED">已取消</option>
+              </select>
+              <button class="btn btn-ghost" id="refreshOrdersBtn" type="button">刷新</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>状态</th>
+                  <th class="num">金额</th>
+                  <th class="num">利润</th>
+                  <th>商品</th>
+                  <th>下单人</th>
+                  <th>创建时间</th>
+                  <th class="actions-col">操作</th>
+                </tr>
+              </thead>
+              <tbody id="orderTableBody"></tbody>
+            </table>
+            <div class="empty" id="orderEmpty" hidden>
+              <strong>还没有订单</strong>
+              <span>点击右上角“新建订单”开始。</span>
+            </div>
+          </div>
+          <div class="pager">
+            <span id="orderPageInfo">第 1 / 1 页</span>
+            <div class="pager-actions">
+              <button class="btn btn-ghost" id="orderPrevPage" type="button">上一页</button>
+              <div class="pager-pages" id="orderPageNumbers"></div>
+              <button class="btn btn-ghost" id="orderNextPage" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 任务 -->
+      <div class="tab-panel" id="panel-tasks" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>任务管理</h2>
+              <p>给仓库和运营团队派活，状态流转自动记录完成时间</p>
+            </div>
+            <div class="panel-actions">
+              <select id="taskStatusFilter" aria-label="任务状态筛选">
+                <option value="">全部状态</option>
+                <option value="PENDING">待处理</option>
+                <option value="IN_PROGRESS">进行中</option>
+                <option value="DONE">已完成</option>
+                <option value="CANCELLED">已取消</option>
+              </select>
+              <button class="btn btn-accent" id="openTaskBtn" type="button" data-write>新建任务</button>
+            </div>
+          </div>
+          <div class="task-stats" id="taskStats"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>任务</th>
+                  <th>状态</th>
+                  <th>优先级</th>
+                  <th>负责人</th>
+                  <th>截止时间</th>
+                  <th>创建人</th>
+                  <th class="actions-col">操作</th>
+                </tr>
+              </thead>
+              <tbody id="taskTableBody"></tbody>
+            </table>
+            <div class="empty" id="taskEmpty" hidden>
+              <strong>没有任务</strong>
+              <span>新建一个补货或盘点任务吧。</span>
+            </div>
+          </div>
+          <div class="pager">
+            <span id="taskPageInfo">第 1 / 1 页</span>
+            <div class="pager-actions">
+              <button class="btn btn-ghost" id="taskPrevPage" type="button">上一页</button>
+              <div class="pager-pages" id="taskPageNumbers"></div>
+              <button class="btn btn-ghost" id="taskNextPage" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 盘点 -->
+      <div class="tab-panel" id="panel-stocktakes" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>库存盘点</h2>
+              <p>创建盘点单 → 录入实盘数量 → 确认后自动调整库存并写流水</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn btn-ghost" id="refreshStocktakesBtn" type="button">刷新</button>
+              <button class="btn btn-accent" id="openStocktakeBtn" type="button" data-write>新建盘点单</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>盘点单号</th>
+                  <th>状态</th>
+                  <th>范围</th>
+                  <th class="num">商品数</th>
+                  <th>盘点人</th>
+                  <th>创建时间</th>
+                  <th class="actions-col">操作</th>
+                </tr>
+              </thead>
+              <tbody id="stocktakeTableBody"></tbody>
+            </table>
+            <div class="empty" id="stocktakeEmpty" hidden>
+              <strong>还没有盘点单</strong>
+              <span>点击“新建盘点单”开始一次盘点。</span>
+            </div>
+          </div>
+          <div class="pager">
+            <span id="stocktakePageInfo">第 1 / 1 页</span>
+            <div class="pager-actions">
+              <button class="btn btn-ghost" id="stocktakePrevPage" type="button">上一页</button>
+              <div class="pager-pages" id="stocktakePageNumbers"></div>
+              <button class="btn btn-ghost" id="stocktakeNextPage" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 调拨 -->
+      <div class="tab-panel" id="panel-transfers" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>库存调拨</h2>
+              <p>仓库之间移动库存，总库存不变，调拨单作为审计凭证</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn btn-ghost" id="refreshTransfersBtn" type="button">刷新</button>
+              <button class="btn btn-ghost" id="openWarehouseBtn" type="button" data-write>新建仓库</button>
+              <button class="btn btn-accent" id="openTransferBtn" type="button" data-write>新建调拨单</button>
+            </div>
+          </div>
+
+          <div class="warehouse-bar" id="warehouseBar"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>调拨单号</th>
+                  <th>调出 → 调入</th>
+                  <th class="num">商品数</th>
+                  <th>操作人</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="transferTableBody"></tbody>
+            </table>
+            <div class="empty" id="transferEmpty" hidden>
+              <strong>还没有调拨单</strong>
+              <span>点击“新建调拨单”在仓库之间移动库存。</span>
+            </div>
+          </div>
+          <div class="pager">
+            <span id="transferPageInfo">第 1 / 1 页</span>
+            <div class="pager-actions">
+              <button class="btn btn-ghost" id="transferPrevPage" type="button">上一页</button>
+              <div class="pager-pages" id="transferPageNumbers"></div>
+              <button class="btn btn-ghost" id="transferNextPage" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 用户 -->
+      <div class="tab-panel" id="panel-users" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>用户管理</h2>
+              <p>admin 管理员 / operator 操作员 / viewer 只读用户</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn btn-ghost" id="refreshUsersBtn" type="button">刷新</button>
+              <button class="btn btn-accent" id="openUserBtn" type="button">新建用户</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户名</th>
+                  <th>姓名</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>最近登录</th>
+                  <th class="actions-col">操作</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- 登录 -->
+  <div class="login-layer" id="loginLayer" hidden>
+    <form class="login-card" id="loginForm">
+      <div class="logo dark">仓</div>
+      <h2>库存管理系统</h2>
+      <p>请使用账号登录后继续</p>
+      <label>
+        用户名
+        <input id="loginUsername" type="text" value="admin" autocomplete="username" required>
+      </label>
+      <label>
+        密码
+        <input id="loginPassword" type="password" placeholder="初始密码 admin123" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-primary" id="loginSubmitBtn" type="submit">登 录</button>
+      <small>默认管理员：admin / admin123，登录后请及时修改密码。</small>
+    </form>
+  </div>
+
+  <!-- 入库/出库 -->
+  <div class="modal-layer" id="stockModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="stockModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="stockModalTitle">商品入库</h3>
+          <p id="stockProductName"></p>
+        </div>
+        <button class="icon-btn" type="button" data-close="stockModal" aria-label="关闭">×</button>
+      </header>
+      <form id="stockForm" class="form">
+        <input type="hidden" id="stockProductId">
+        <input type="hidden" id="stockType">
+        <label>
+          数量
+          <input id="stockQuantity" type="number" min="1" value="1" required>
+        </label>
+        <label>
+          操作人
+          <input id="stockOperator" type="text" maxlength="64" placeholder="可选">
+        </label>
+        <label>
+          备注
+          <input id="stockRemark" type="text" maxlength="255" placeholder="可选">
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="stockModal">取消</button>
+          <button class="btn btn-primary" id="stockSubmitBtn" type="submit">确认入库</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 新建订单 -->
+  <div class="modal-layer" id="orderModal" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="orderModalTitle">新建订单</h3>
+          <p>选择商品和数量，提交后自动扣减库存。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="orderModal" aria-label="关闭">×</button>
+      </header>
+      <form id="orderForm" class="form">
+        <div class="order-picker">
+          <div class="field">
+            <label for="orderProductSearch">商品</label>
+            <div class="combo" id="orderProductCombo">
+              <input
+                id="orderProductSearch"
+                type="search"
+                placeholder="输入商品名称或 SKU 搜索"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-controls="orderProductList"
+              >
+              <div class="combo-list" id="orderProductList" hidden></div>
+            </div>
+          </div>
+          <label>
+            数量
+            <input id="orderQuantity" type="number" min="1" value="1">
+          </label>
+          <button class="btn btn-dark" id="addOrderItemBtn" type="button">添加商品</button>
+        </div>
+
+        <div class="order-list" id="orderItems"></div>
+        <div class="order-total">
+          <span>合计 <strong id="orderTotal">¥0.00</strong></span>
+          <span class="order-profit">预计利润 <b id="orderProfit">¥0.00</b></span>
+        </div>
+
+        <div class="grid-2">
+          <label>
+            操作人
+            <input id="orderOperator" type="text" maxlength="64" placeholder="可选">
+          </label>
+          <label>
+            备注
+            <input id="orderRemark" type="text" maxlength="255" placeholder="可选">
+          </label>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="orderModal">取消</button>
+          <button class="btn btn-primary" id="orderSubmitBtn" type="submit">提交订单</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 退货 -->
+  <div class="modal-layer" id="returnModal" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="returnModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="returnModalTitle">订单退货</h3>
+          <p id="returnOrderInfo"></p>
+        </div>
+        <button class="icon-btn" type="button" data-close="returnModal" aria-label="关闭">×</button>
+      </header>
+      <form id="returnForm" class="form">
+        <input type="hidden" id="returnOrderId">
+        <div class="return-list" id="returnItems"></div>
+        <label>
+          退货原因
+          <input id="returnReason" type="text" maxlength="255" placeholder="可选">
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="returnModal">取消</button>
+          <button class="btn btn-primary" type="submit">确认退货</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 任务 -->
+  <div class="modal-layer" id="taskModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="taskModalTitle">新建任务</h3>
+          <p>任务会显示在任务管理列表中。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="taskModal" aria-label="关闭">×</button>
+      </header>
+      <form id="taskForm" class="form">
+        <input type="hidden" id="taskId">
+        <label>
+          标题
+          <input id="taskTitle" type="text" maxlength="128" required>
+        </label>
+        <label>
+          描述
+          <textarea id="taskDescription" rows="3" maxlength="5000"></textarea>
+        </label>
+        <div class="grid-2">
+          <label>
+            优先级
+            <select id="taskPriority">
+              <option value="LOW">低</option>
+              <option value="NORMAL" selected>普通</option>
+              <option value="HIGH">高</option>
+              <option value="URGENT">紧急</option>
+            </select>
+          </label>
+          <label>
+            负责人
+            <input id="taskAssignee" type="text" maxlength="64" placeholder="可选">
+          </label>
+        </div>
+        <label>
+          截止时间
+          <input id="taskDueAt" type="datetime-local">
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="taskModal">取消</button>
+          <button class="btn btn-primary" type="submit">保存</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 新建盘点 -->
+  <div class="modal-layer" id="stocktakeModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="stocktakeModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="stocktakeModalTitle">新建盘点单</h3>
+          <p>创建时会把当前库存抄成账面数量。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="stocktakeModal" aria-label="关闭">×</button>
+      </header>
+      <form id="stocktakeForm" class="form">
+        <label>
+          盘点范围
+          <select id="stocktakeCategory">
+            <option value="">全部分类</option>
+          </select>
+        </label>
+        <label>
+          备注
+          <input id="stocktakeRemark" type="text" maxlength="255" placeholder="可选">
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="stocktakeModal">取消</button>
+          <button class="btn btn-primary" type="submit">创建</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 录入实盘 -->
+  <div class="modal-layer" id="countModal" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="countModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="countModalTitle">录入实盘数量</h3>
+          <p id="countModalInfo"></p>
+        </div>
+        <button class="icon-btn" type="button" data-close="countModal" aria-label="关闭">×</button>
+      </header>
+      <form id="countForm" class="form">
+        <input type="hidden" id="countStocktakeId">
+        <div class="count-list" id="countItems"></div>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="countModal">取消</button>
+          <button class="btn btn-dark" id="saveCountBtn" type="submit">保存计数</button>
+          <button class="btn btn-primary" id="confirmStocktakeBtn" type="button">保存并确认盘点</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 新建调拨 -->
+  <div class="modal-layer" id="transferModal" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="transferModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="transferModalTitle">新建调拨单</h3>
+          <p>调拨只改变仓库库存，商品总库存不变。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="transferModal" aria-label="关闭">×</button>
+      </header>
+      <form id="transferForm" class="form">
+        <div class="grid-2">
+          <label>
+            调出仓库
+            <select id="transferFrom"></select>
+          </label>
+          <label>
+            调入仓库
+            <select id="transferTo"></select>
+          </label>
+        </div>
+        <div class="order-picker">
+          <label>
+            商品
+            <select id="transferProductSelect"></select>
+          </label>
+          <label>
+            数量
+            <input id="transferQuantity" type="number" min="1" value="1">
+          </label>
+          <button class="btn btn-dark" id="addTransferItemBtn" type="button">添加商品</button>
+        </div>
+        <div class="order-list" id="transferItems"></div>
+        <div class="grid-2">
+          <label>
+            操作人
+            <input id="transferOperator" type="text" maxlength="64" placeholder="可选">
+          </label>
+          <label>
+            备注
+            <input id="transferRemark" type="text" maxlength="255" placeholder="可选">
+          </label>
+        </div>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="transferModal">取消</button>
+          <button class="btn btn-primary" type="submit">提交调拨</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 新建仓库 -->
+  <div class="modal-layer" id="warehouseModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="warehouseModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="warehouseModalTitle">新建仓库</h3>
+          <p>编码会自动转为大写，例如 WH-SH。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="warehouseModal" aria-label="关闭">×</button>
+      </header>
+      <form id="warehouseForm" class="form">
+        <label>
+          仓库编码
+          <input id="warehouseCode" type="text" maxlength="32" placeholder="WH-SH" required>
+        </label>
+        <label>
+          仓库名称
+          <input id="warehouseName" type="text" maxlength="64" placeholder="上海仓" required>
+        </label>
+        <label>
+          地址
+          <input id="warehouseAddress" type="text" maxlength="255" placeholder="可选">
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="warehouseModal">取消</button>
+          <button class="btn btn-primary" type="submit">创建</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- 新建用户 -->
+  <div class="modal-layer" id="userModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <header class="modal-head">
+        <div>
+          <h3 id="userModalTitle">新建用户</h3>
+          <p>密码至少 6 位，创建后可以修改角色。</p>
+        </div>
+        <button class="icon-btn" type="button" data-close="userModal" aria-label="关闭">×</button>
+      </header>
+      <form id="userForm" class="form">
+        <label>
+          用户名
+          <input id="userUsername" type="text" maxlength="64" placeholder="字母、数字、下划线" required>
+        </label>
+        <label>
+          初始密码
+          <input id="userPassword" type="password" minlength="6" maxlength="128" required>
+        </label>
+        <label>
+          姓名
+          <input id="userFullName" type="text" maxlength="64" placeholder="可选">
+        </label>
+        <label>
+          角色
+          <select id="userRole">
+            <option value="operator" selected>操作员</option>
+            <option value="viewer">只读用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </label>
+        <footer class="modal-actions">
+          <button class="btn btn-ghost" type="button" data-close="userModal">取消</button>
+          <button class="btn btn-primary" type="submit">创建</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/static/app.js?v=20261124"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Web 框架与 ASGI 服务器
+fastapi>=0.100
+uvicorn[standard]>=0.20
+
+# 数据库 ORM / 驱动 / 迁移
+sqlalchemy>=2.0
+pymysql>=1.1
+alembic>=1.12
+
+# 配置管理
+pydantic-settings>=2.0
+
+# Redis 缓存与限流（可选）
+# 未安装或 Redis 未启动时，代码会自动降级为进程内缓存，不影响启动。
+redis>=5.0
+
+# 测试
+pytest>=7.4
+httpx>=0.24

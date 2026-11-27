@@ -1,0 +1,32 @@
+Alembic 迁移目录。
+
+结构:
+    env.py              运行环境，读取 app.core.config.settings.database_url
+    script.py.mako      生成新迁移文件的模板
+    versions/           每个迁移版本一个文件
+
+当前版本:
+    0001_initial_schema 完整表结构（15 张表 + 默认仓库）
+
+新数据库（没有任何表）:
+    .\.venv\Scripts\python.exe -m alembic upgrade head
+
+已用 sql/create_tables.sql 建过旧表的数据库:
+    方式 A（推荐，有审计记录）:
+        1. mysql < sql/upgrade_v2.sql
+        2. .\.venv\Scripts\python.exe -m alembic stamp 0001
+
+    方式 B（不使用 Alembic）:
+        只执行 sql/upgrade_v2.sql 即可，后续再接入 Alembic。
+
+常用命令:
+    alembic current                                  查看当前版本
+    alembic history                                  查看版本历史
+    alembic upgrade head                             升级到最新
+    alembic downgrade -1                             回退一个版本
+    alembic revision --autogenerate -m "变更说明"     根据模型差异生成迁移
+
+注意:
+    - 数据库连接串来自 .env 的 DATABASE_URL，alembic.ini 中不保存密码。
+    - 迁移脚本使用了 MySQL 方言（BIGINT UNSIGNED），不适用于 SQLite。
+    - SQLite 单元测试通过 Base.metadata.create_all() 建表，不走 Alembic。
