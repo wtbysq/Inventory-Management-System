@@ -10,23 +10,25 @@
 
 ```text
 库存管理系统/
-├── 源码/          # 开发用：Python 源码、测试、迁移、SQL、文档
-└── 移植文件/      # 开箱即用：exe + 前端 + SQL 脚本 + 使用说明
+└── 源码/          # Python 源码、测试、迁移、SQL、文档、前端
 ```
+
+> 可移植版（exe + static + sql + 使用说明）体积较大，不放在 main 分支，
+> 而是打包成 zip 发布在本仓库的 [Releases](../../releases) 页面。
 
 ## 快速开始
 
-### 方式一：直接用 exe（不需要 Python）
+### 方式一：直接用移植版（不需要 Python）
 
-1. 从本仓库 [Releases](../../releases) 下载最新的 `InventoryManager.exe`，
-   放到 `移植文件/` 目录下（exe 体积较大，不随源码提交）
-2. 安装 MySQL 8 并启动
-3. 把 `移植文件/sql/install.sql` 导入（建库 + 15 张表）
-4. 把 `移植文件/.env.example` 复制为 `.env`，填数据库密码
-5. 双击 `移植文件/InventoryManager.exe`，浏览器打开 <http://127.0.0.1:8000>
-6. 默认账号 `admin / admin123`（首次启动自动创建，请立即修改）
+1. 从本仓库 [Releases](../../releases) 下载 `库存管理系统-移植版-v1.0.0.zip`
+2. 解压得到 `移植文件/` 目录（内含 exe、前端、SQL 脚本和使用说明）
+3. 安装 MySQL 8 并启动
+4. 把 `移植文件/sql/install.sql` 导入（建库 + 15 张表）
+5. 把 `移植文件/.env.example` 复制为 `.env`，填数据库密码
+6. 双击 `移植文件/InventoryManager.exe`，浏览器打开 <http://127.0.0.1:8000>
+7. 默认账号 `admin / admin123`（首次启动自动创建，请立即修改）
 
-详细步骤见 [移植文件/使用说明.txt](移植文件/使用说明.txt)。
+详细步骤见压缩包内的 `使用说明.txt`。
 
 ### 方式二：跑源码
 
@@ -78,6 +80,6 @@ python -m uvicorn app.main:app --reload
 ## 注意
 
 - `.env` 含数据库密码，已在 `.gitignore` 中排除，请勿提交
-- `InventoryManager.exe`（约 28 MB）不进 Git，请从 [Releases](../../releases) 下载；重新打包方法见 [源码/README.md](源码/README.md)
+- `移植文件/`（含 28 MB 的 exe）不进 Git，统一通过 [Releases](../../releases) 发布；重新打包方法见 [源码/README.md](源码/README.md)
 - 生产环境务必更换 `SECRET_KEY`
 - 移植版默认只监听 `127.0.0.1`，局域网使用需改 `launcher.py` 的 host 并重新打包
