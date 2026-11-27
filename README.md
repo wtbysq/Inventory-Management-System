@@ -18,11 +18,13 @@
 
 ### 方式一：直接用 exe（不需要 Python）
 
-1. 安装 MySQL 8 并启动
-2. 把 `移植文件/sql/install.sql` 导入（建库 + 15 张表）
-3. 把 `移植文件/.env.example` 复制为 `.env`，填数据库密码
-4. 双击 `移植文件/InventoryManager.exe`，浏览器打开 <http://127.0.0.1:8000>
-5. 默认账号 `admin / admin123`（首次启动自动创建，请立即修改）
+1. 从本仓库 [Releases](../../releases) 下载最新的 `InventoryManager.exe`，
+   放到 `移植文件/` 目录下（exe 体积较大，不随源码提交）
+2. 安装 MySQL 8 并启动
+3. 把 `移植文件/sql/install.sql` 导入（建库 + 15 张表）
+4. 把 `移植文件/.env.example` 复制为 `.env`，填数据库密码
+5. 双击 `移植文件/InventoryManager.exe`，浏览器打开 <http://127.0.0.1:8000>
+6. 默认账号 `admin / admin123`（首次启动自动创建，请立即修改）
 
 详细步骤见 [移植文件/使用说明.txt](移植文件/使用说明.txt)。
 
@@ -76,5 +78,6 @@ python -m uvicorn app.main:app --reload
 ## 注意
 
 - `.env` 含数据库密码，已在 `.gitignore` 中排除，请勿提交
+- `InventoryManager.exe`（约 28 MB）不进 Git，请从 [Releases](../../releases) 下载；重新打包方法见 [源码/README.md](源码/README.md)
 - 生产环境务必更换 `SECRET_KEY`
 - 移植版默认只监听 `127.0.0.1`，局域网使用需改 `launcher.py` 的 host 并重新打包
